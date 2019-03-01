@@ -4,6 +4,7 @@ import asyncio
 from ipywidgets import Box, Dropdown, HBox, Label, Layout, \
                        link, Output, Text, ToggleButtons, VBox
 import logging
+import time
 from traitlets import Bool, HasTraits, observe, Unicode
 
 from .logging import OutputWidgetHandler
@@ -15,7 +16,7 @@ module_logger.addHandler(logging.StreamHandler())
 
 class Widget(Box):
     x, y = Unicode(), Unicode()
-    read = Bool(True)
+    read, refresh = Bool(True), Bool(True)
 
     def __init__(self, cacher, logger=None, **traits):
         self._cacher = cacher
@@ -36,6 +37,7 @@ class Widget(Box):
         ui_x = Dropdown(options=labels, value=self.x)
         ui_y = Dropdown(options=labels, value=self.y)
         ui_read = ToggleButtons(options=[True, False])
+        ui_refresh = ToggleButtons(options=[True, False])
         self._progress = Text(disabled=True)
         self._tb = Output()
         self._fig = Output()
@@ -44,6 +46,7 @@ class Widget(Box):
         l_x = HBox((Label("x: "),), layout=ll)
         l_y = HBox((Label("y: "),), layout=ll)
         l_read = HBox((Label("Read: "),), layout=ll)
+        l_refresh = HBox((Label("Refresh: "),), layout=ll)
         l_progress = HBox((Label("Progress: "),), layout=ll)
         l_tools = HBox((Label("Tools: "),), layout=ll)
 
@@ -52,17 +55,19 @@ class Widget(Box):
         link((self, 'x'), (ui_x, 'value'))
         link((self, 'y'), (ui_y, 'value'))
         link((self, 'read'), (ui_read, 'value'))
+        link((self, 'refresh'), (ui_refresh, 'value'))
 
         b = (HBox((l_x, ui_x)),
              HBox((l_y, ui_y)),
              HBox((l_read, ui_read)),
              HBox((l_progress, self._progress)),
+             HBox((l_refresh, ui_refresh)),
              HBox((l_tools, self._tb)),
              self._fig)
 
-        self._ui = (ui_x, ui_y, ui_read)
+        self._ui = (ui_x, ui_y, ui_read, ui_refresh)
 
-        self._plot, self._task = None, None
+        self._plot, self._task, self._last_update = None, None, 0
         read = self.read; self.read = False; self.read = read
         super(self.__class__, self).__init__((VBox(b),))
 
@@ -73,8 +78,11 @@ class Widget(Box):
     def _on_change_xy(self, b):
         self._refresh_plot(self._cacher.cache)
     def _on_update(self, cache, new):
-        self._refresh_plot(cache, new)
-        self._progress.value = "{}".format(len(cache[self.x]))
+        if self.refresh: self._refresh_plot(cache, new)
+        updates = int(1.0 / (time.time() - self._last_update))
+        self._progress.value = "{} | {} updates/s".format(
+            len(cache[self.x]), updates)
+        self._last_update = time.time()
     def _on_eof(self, cache):
         self._progress.value = "{} | EOF".format(len(cache[self.x]))
 
