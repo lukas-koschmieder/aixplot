@@ -21,21 +21,22 @@ class Plotter(object):
         self.logger = logger if logger else module_logger
         self._plot = None
 
-    def refresh(self, x, y, cache, new=None):
+    def refresh(self, x, y, filter=None):
         if self._plot:
-            self._plot.figure.marks[0].x = cache[x]
-            self._plot.figure.marks[0].y = cache[y]
-            self._plot.figure.axes[0].label = x
-            self._plot.figure.axes[1].label = y
+            c = self.cacher.cache
+            fig = self._plot.figure
+            m, a = fig.marks, fig.axes
+            m[0].x, m[0].y = c[x], c[y]
+            a[0].label, a[1].label = x, y
 
-    def plot(self, x, y, title="", xscale=None, yscale=None):
+    def plot(self, x, y, xscale=None, yscale=None):
         if not self._plot:
             xscale = xscale if xscale else LinearScale()
             yscale = yscale if yscale else LinearScale()
             a = [Axis(label=x, scale=xscale),
                  Axis(label=y, scale=yscale, side='left')]
             m = Lines(x=[], y=[], scales={'x': xscale, 'y': yscale})
-            p = Plot(Figure(marks=[m], axes=a, title=title))
+            p = Plot(Figure(marks=[m], axes=a))
             self._plot = p
-        self.refresh(x, y, self.cacher.cache)
+        self.refresh(x, y)
         return self._plot

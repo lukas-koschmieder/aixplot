@@ -72,17 +72,19 @@ class Widget(Box):
         super(self.__class__, self).__init__((VBox(b),))
 
     def _on_change_read(self, b):
-        if not self._plot:
-            self._display_plot()
+        if not self._plot: self._display_plot()
         self._read(b.new)
+
     def _on_change_xy(self, b):
-        self._refresh_plot(self._cacher.cache)
+        self._refresh_plot()
+
     def _on_update(self, cache, new):
-        if self.refresh: self._refresh_plot(cache, new)
+        if self.refresh: self._refresh_plot()
         updates = int(1.0 / (time.time() - self._last_update))
-        self._progress.value = "{} | {} updates/s".format(
-            len(cache[self.x]), updates)
+        progress = "{} | {} updates/s" if updates > 0 else "{}"
+        self._progress.value = progress.format(len(cache[self.x]), updates)
         self._last_update = time.time()
+
     def _on_eof(self, cache):
         self._progress.value = "{} | EOF".format(len(cache[self.x]))
 
@@ -96,8 +98,8 @@ class Widget(Box):
             self._set_disable_ui(False)
         return deco
 
-    def _refresh_plot(self, cache, new=None):
-        self._plotter.refresh(self.x, self.y, cache, new)
+    def _refresh_plot(self):
+        self._plotter.refresh(self.x, self.y)
 
     @disable_ui
     def _read(self, b):
