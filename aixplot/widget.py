@@ -1,11 +1,12 @@
 # Copyright (c) 2019 Lukas Koschmieder
 
+from abc import ABC, abstractmethod
 import asyncio
 from ipywidgets import Box, Dropdown, HBox, Label, Layout, \
                        link, Output, Text, ToggleButtons, VBox
 import logging
 import time
-from traitlets import Bool, HasTraits, observe, Unicode
+from traitlets import Bool, HasTraits, Instance, List, observe, Unicode
 
 from .logging import OutputWidgetHandler
 from .plotter import Plotter
@@ -14,9 +15,25 @@ module_logger = logging.getLogger(__name__)
 module_logger.setLevel(logging.INFO)
 module_logger.addHandler(logging.StreamHandler())
 
+class Filter(ABC):
+    @abstractmethod
+    def __repr__(self):
+        pass
+    @abstractmethod
+    def __call__(self, label, cache):
+        pass
+
+class NoneFilter(Filter):
+    def __repr__(self):
+        return "None"
+    def __call__(self, label, cache):
+        return cache[label]
+
 class Widget(Box):
     x, y = Unicode(), Unicode()
     read, refresh = Bool(True), Bool(True)
+    filter = Instance(klass=Filter, allow_none=True)
+    filters = List([NoneFilter()])
 
     def __init__(self, cacher, logger=None, **traits):
         self._cacher = cacher
@@ -34,10 +51,13 @@ class Widget(Box):
         self.x = self.x if self.x else labels[0]
         self.y = self.y if self.y else labels[0]
 
+        self.filter = self.filter if self.filter else self.filters[0]
+
         ui_x = Dropdown(options=labels, value=self.x)
         ui_y = Dropdown(options=labels, value=self.y)
         ui_read = ToggleButtons(options=[True, False])
         ui_refresh = ToggleButtons(options=[True, False])
+        ui_filter = Dropdown(options=self.filters, value=self.filter)
         self._progress = Text(disabled=True)
         self._tb = Output()
         self._fig = Output()
@@ -48,24 +68,27 @@ class Widget(Box):
         l_read = HBox((Label("Read: "),), layout=ll)
         l_refresh = HBox((Label("Refresh: "),), layout=ll)
         l_progress = HBox((Label("Progress: "),), layout=ll)
+        l_filter = HBox((Label("Filter: "),), layout=ll)
         l_tools = HBox((Label("Tools: "),), layout=ll)
 
-        self.observe(self._on_change_xy, names=['x','y'])
+        self.observe(self._on_change_xy, names=['x','y','filter'])
         self.observe(self._on_change_read, names=['read'])
         link((self, 'x'), (ui_x, 'value'))
         link((self, 'y'), (ui_y, 'value'))
         link((self, 'read'), (ui_read, 'value'))
         link((self, 'refresh'), (ui_refresh, 'value'))
+        link((self, 'filter'), (ui_filter, 'value'))
 
         b = (HBox((l_x, ui_x)),
              HBox((l_y, ui_y)),
              HBox((l_read, ui_read)),
              HBox((l_progress, self._progress)),
              HBox((l_refresh, ui_refresh)),
+             HBox((l_filter, ui_filter)),
              HBox((l_tools, self._tb)),
              self._fig)
 
-        self._ui = (ui_x, ui_y, ui_read, ui_refresh)
+        self._ui = (ui_x, ui_y, ui_read, ui_refresh, ui_filter)
 
         self._plot, self._task, self._last_update = None, None, 0
         read = self.read; self.read = False; self.read = read
@@ -99,7 +122,7 @@ class Widget(Box):
         return deco
 
     def _refresh_plot(self):
-        self._plotter.refresh(self.x, self.y)
+        self._plotter.refresh(self.x, self.y, self.filter)
 
     @disable_ui
     def _read(self, b):
