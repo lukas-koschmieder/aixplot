@@ -92,7 +92,7 @@ class Widget(Box):
 
         self._plot, self._task, self._last_update = None, None, 0
         read = self.read; self.read = False; self.read = read
-        super(self.__class__, self).__init__((VBox(b),))
+        super(Widget, self).__init__((VBox(b),))
 
     def _on_change_read(self, b):
         if not self._plot: self._display_plot()
