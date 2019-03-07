@@ -23,10 +23,15 @@ class Plotter(object):
 
     def refresh(self, x, y, filter=None):
         if self._plot:
-            c = self.cacher.cache
             fig = self._plot.figure
+            c = self.cacher.cache
+            dx, dy = None, None
+            if filter:
+                dx, dy = filter(x, c), filter(y, c)
+            else:
+                dx, dy = c[x], c[y]
             m, a = fig.marks, fig.axes
-            m[0].x, m[0].y = c[x], c[y]
+            m[0].x, m[0].y = dx, dy
             a[0].label, a[1].label = x, y
 
     def plot(self, x, y, xscale=None, yscale=None):
