@@ -41,7 +41,9 @@ class Plotter(object):
             a = [Axis(label=x, scale=xscale),
                  Axis(label=y, scale=yscale, side='left')]
             m = Lines(x=[], y=[], scales={'x': xscale, 'y': yscale})
-            p = Plot(Figure(marks=[m], axes=a))
+            p = Plot(Figure(marks=[m], axes=a, layout={"width":"auto"},
+                            fig_margin=dict(top=10, bottom=40,
+                                            left=60, right=0)))
             self._plot = p
         self.refresh(x, y)
         return self._plot

@@ -2,8 +2,8 @@
 
 from abc import ABC, abstractmethod
 import asyncio
-from ipywidgets import Box, Dropdown, HBox, Label, Layout, \
-                       link, Output, Text, ToggleButtons, VBox
+from ipywidgets import Box, Checkbox, Dropdown, HBox, Label, Layout, \
+                       link, Output, Text, ToggleButton, ToggleButtons, VBox
 import logging
 import time
 from traitlets import Bool, HasTraits, Instance, List, observe, Unicode
@@ -13,7 +13,7 @@ from .plotter import Plotter
 
 module_logger = logging.getLogger(__name__)
 module_logger.setLevel(logging.INFO)
-module_logger.addHandler(logging.StreamHandler())
+#module_logger.addHandler(logging.StreamHandler())
 
 class Filter(ABC):
     @abstractmethod
@@ -53,23 +53,14 @@ class Widget(Box):
 
         self.filter = self.filter if self.filter else self.filters[0]
 
-        ui_x = Dropdown(options=labels, value=self.x)
-        ui_y = Dropdown(options=labels, value=self.y)
-        ui_read = ToggleButtons(options=[True, False])
-        ui_refresh = ToggleButtons(options=[True, False])
-        ui_filter = Dropdown(options=self.filters, value=self.filter)
-        self._progress = Text(disabled=True)
-        self._tb = Output()
-        self._fig = Output()
-
-        ll = Layout(width="100px", justify_content="flex-end")
-        l_x = HBox((Label("x: "),), layout=ll)
-        l_y = HBox((Label("y: "),), layout=ll)
-        l_read = HBox((Label("Read: "),), layout=ll)
-        l_refresh = HBox((Label("Refresh: "),), layout=ll)
-        l_progress = HBox((Label("Progress: "),), layout=ll)
-        l_filter = HBox((Label("Filter: "),), layout=ll)
-        l_tools = HBox((Label("Tools: "),), layout=ll)
+        ui_x = Dropdown(description="x:", options=labels, value=self.x)
+        ui_y = Dropdown(description="y:", options=labels, value=self.y)
+        ui_read = ToggleButton(description="Read")
+        ui_refresh = ToggleButton(description="Plot")
+        ui_filter = Dropdown(description="Filters:",
+                             options=self.filters, value=self.filter)
+        self._tb = Output(layout={"padding":"0","margin":"0"})
+        self._fig = Output(layout={"padding":"0","margin":"0"})
 
         self.observe(self._on_change_xy, names=['x','y','filter'])
         self.observe(self._on_change_read, names=['read'])
@@ -79,14 +70,11 @@ class Widget(Box):
         link((self, 'refresh'), (ui_refresh, 'value'))
         link((self, 'filter'), (ui_filter, 'value'))
 
-        b = (HBox((l_x, ui_x)),
-             HBox((l_y, ui_y)),
-             HBox((l_read, ui_read)),
-             HBox((l_progress, self._progress)),
-             HBox((l_refresh, ui_refresh)),
-             HBox((l_filter, ui_filter)),
-             HBox((l_tools, self._tb)),
-             self._fig)
+        l = Layout(display="inline-flex", flex_flow="row wrap")
+        b = (HBox((ui_x, ui_y, ui_filter,), layout=l),
+             HBox((ui_read, ui_refresh, self._tb,), layout=l),
+             self._fig,
+             HBox((log_handler.out,), layout=l))
 
         self._ui = (ui_x, ui_y, ui_read, ui_refresh, ui_filter)
 
@@ -105,11 +93,13 @@ class Widget(Box):
         if self.refresh: self._refresh_plot()
         updates = int(1.0 / (time.time() - self._last_update))
         progress = "{} | {} updates/s" if updates > 0 else "{}"
-        self._progress.value = progress.format(len(cache[self.x]), updates)
+        x = progress.format(len(cache[self.x]), updates)
+        self.logger.info(x)
         self._last_update = time.time()
 
     def _on_eof(self, cache):
-        self._progress.value = "{} | EOF".format(len(cache[self.x]))
+        x = "{} | EOF".format(len(cache[self.x]))
+        self.logger.info(x)
 
     def _set_disable_ui(self, b):
         for i in self._ui: i.disabled = b
@@ -139,7 +129,6 @@ class Widget(Box):
     @disable_ui
     def _display_plot(self):
         p, x, y = self._plotter, self.x, self.y
-        self.logger.debug("Plot x=%s y=%s", x, y)
         plot = p.plot(x, y)
         if not self._plot:
             with self._fig: display(plot.figure)
