@@ -7,12 +7,13 @@ from ipywidgets import Output
 class OutputWidgetHandler(logging.Handler):
     """ Custom logging handler sending logs to an output widget """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, scrollback=32, *args, **kwargs):
         super(OutputWidgetHandler, self).__init__(*args, **kwargs)
         layout = {
             'width': '100%',
             'height': '160px',
         }
+        self.scrollback = scrollback
         self.out = Output(layout=layout)
 
     def emit(self, record):
@@ -23,7 +24,7 @@ class OutputWidgetHandler(logging.Handler):
             'output_type': 'stream',
             'text': formatted_record+'\n'
         }
-        self.out.outputs = (new_output, ) + self.out.outputs
+        self.out.outputs = (new_output, ) + self.out.outputs[:self.scrollback]
 
     def show_logs(self):
         """ Show the logs """
