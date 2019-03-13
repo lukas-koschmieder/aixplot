@@ -1,6 +1,6 @@
 # Copyright (c) 2019 Lukas Koschmieder
 
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractstaticmethod
 import asyncio
 from collections import defaultdict
 import logging
@@ -23,7 +23,7 @@ class Cacher(ABC):
     async def _async_read(self):
         pass
 
-    @abstractmethod
+    @abstractstaticmethod
     def labels(self):
         pass
 

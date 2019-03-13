@@ -14,6 +14,9 @@ class Plot(VBox):
         self.figure = figure
         self.toolbar = Toolbar(figure=figure)
         super(self.__class__, self).__init__((self.figure, self.toolbar))
+    def close(self):
+        self.figure.close()
+        self.toolbar.close()
 
 class Plotter(object):
     def __init__(self, cacher, logger=None):
@@ -41,7 +44,7 @@ class Plotter(object):
             a = [Axis(label=x, scale=xscale),
                  Axis(label=y, scale=yscale, side='left')]
             m = Lines(x=[], y=[], scales={'x': xscale, 'y': yscale})
-            p = Plot(Figure(marks=[m], axes=a, layout={"width":"auto"},
+            p = Plot(Figure(marks=[m], axes=a,
                             fig_margin=dict(top=10, bottom=40,
                                             left=60, right=0)))
             self._plot = p
