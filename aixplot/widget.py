@@ -2,8 +2,8 @@
 
 from abc import ABC, abstractmethod
 import asyncio
-from ipywidgets import Box, Checkbox, Dropdown, HBox, Label, Layout, \
-                       link, Output, Text, ToggleButton, VBox
+from ipywidgets import Box, Button, Checkbox, Dropdown, HBox, Label, Layout, \
+                       link, Output, Text, VBox
 import logging
 import time
 from traitlets import Bool, HasTraits, Instance, List, observe, Unicode
@@ -52,11 +52,13 @@ class Widget(Box):
         self.x = self.x if self.x else labels[0]
         self.y = self.y if self.y else labels[0]
         self.filter = self.filter if self.filter else self.filters[0]
+        self.read, self.refresh = False, False
 
         ui_filename = Text(description="File:", layout={"flex":"1 0 auto"})
         ui_x = Dropdown(description="x:", options=labels)
         ui_y = Dropdown(description="y:", options=labels)
-        ui_read = ToggleButton(description="Read")
+        ui_read = Button(description="Read")
+        ui_cancel = Button(description="Cancel")
         ui_refresh = Checkbox(description="Refresh plot", layout={"width":"auto"},
             tooltip="Automatically update plot when new data is read")
         ui_filter = Dropdown(description="Filters:", options=self.filters)
@@ -66,31 +68,32 @@ class Widget(Box):
         ui_log = Dropdown(description="Log level:", value="INFO",
                           options=["ERROR", "WARNING", "INFO", "DEBUG"])
 
+        ui_read.on_click(self._read)
+        ui_cancel.on_click(self._cancel)
         self.observe(self._refresh_plot, names=['x','y','filter'])
         self.observe(self._read, names=['read'])
         ui_log.observe(self._update_log, names=['value'])
         link((self, 'filename'), (ui_filename, 'value'))
         link((self, 'x'), (ui_x, 'value'))
         link((self, 'y'), (ui_y, 'value'))
-        link((self, 'read'), (ui_read, 'value'))
         link((self, 'refresh'), (ui_refresh, 'value'))
         link((self, 'filter'), (ui_filter, 'value'))
 
         l1 = Layout(display="inline-flex", flex_flow="row wrap")
         l2 = Layout(display="inline-flex", flex_flow="row wrap",
                     justify_content="space-between")
-        b = (HBox((ui_filename, ui_read,), layout=l1),
+        b = (HBox((ui_filename, ui_read, ui_cancel,), layout=l1),
              HBox((ui_x, ui_y, ui_filter,), layout=l1),
              HBox((spacer, self._tb, ui_refresh,), layout=l2),
              HBox((self._fig,), layout=l1),
              HBox((ui_log,), layout=l1),
              HBox((log_handler.out,), layout=l1),)
 
-        self._ui_read = ui_read
-        self._ui = (ui_filename, ui_x, ui_y, ui_read,
+        self._ui = (ui_filename, ui_x, ui_y, ui_read, ui_cancel,
                     ui_refresh, ui_filter)
 
-        read = self.read; self.read = False; self.read = read
+        self.refresh = True
+        self._read()
         super(Widget, self).__init__((VBox(b),))
 
     def _set_disable_ui(self, b):
@@ -103,19 +106,18 @@ class Widget(Box):
         return deco
 
     @disable_ui
-    def _read(self, b):
+    def _read(self, b=None):
         self._cancel_task()
-        if not b.new:
-            self.logger.info("Stopped reading file")
-            return
         try:
             if self._create_plotter():
                 self._display_plot()
             self._start_task()
-            self.logger.info("Reading file")
         except Exception as e:
             self.logger.error(e)
-            self.read, self._ui_read.value = False, False
+
+    @disable_ui
+    def _cancel(self, b=None):
+        self._cancel_task()
 
     @disable_ui
     def _update_log(self, b):
