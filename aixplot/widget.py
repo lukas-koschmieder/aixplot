@@ -48,15 +48,12 @@ class Widget(Box):
         log_handler.setFormatter(logging.Formatter(fmt, "%H:%M:%S"))
         self.logger.addHandler(log_handler)
 
-        labels = self._cacher_class.labels(self)
-        self.x = self.x if self.x else labels[0]
-        self.y = self.y if self.y else labels[0]
         self.filter = self.filter if self.filter else self.filters[0]
         self.read, self.refresh = False, False
 
         ui_filename = Text(description="File:", layout={"flex":"1 0 auto"})
-        ui_x = Dropdown(description="x:", options=labels)
-        ui_y = Dropdown(description="y:", options=labels)
+        self._ui_x = Dropdown(description="x:", options=[])
+        self._ui_y = Dropdown(description="y:", options=[])
         ui_read = Button(description="Read")
         ui_cancel = Button(description="Cancel")
         ui_refresh = Checkbox(description="Refresh plot", layout={"width":"auto"},
@@ -74,8 +71,6 @@ class Widget(Box):
         self.observe(self._read, names=['read'])
         ui_log.observe(self._update_log, names=['value'])
         link((self, 'filename'), (ui_filename, 'value'))
-        link((self, 'x'), (ui_x, 'value'))
-        link((self, 'y'), (ui_y, 'value'))
         link((self, 'refresh'), (ui_refresh, 'value'))
         link((self, 'filter'), (ui_filter, 'value'))
 
@@ -83,13 +78,13 @@ class Widget(Box):
         l2 = Layout(display="inline-flex", flex_flow="row wrap",
                     justify_content="space-between")
         b = (HBox((ui_filename, ui_read, ui_cancel,), layout=l1),
-             HBox((ui_x, ui_y, ui_filter,), layout=l1),
+             HBox((self._ui_x, self._ui_y, ui_filter,), layout=l1),
              HBox((spacer, self._tb, ui_refresh,), layout=l2),
              HBox((self._fig,), layout=l1),
              HBox((ui_log,), layout=l1),
              HBox((log_handler.out,), layout=l1),)
 
-        self._ui = (ui_filename, ui_x, ui_y, ui_read, ui_cancel,
+        self._ui = (ui_filename, self._ui_x, self._ui_y, ui_read, ui_cancel,
                     ui_refresh, ui_filter)
 
         self.refresh = True
@@ -156,6 +151,10 @@ class Widget(Box):
         self._task = None
 
     def _on_update(self, cache, new):
+        self._ui_x.options, self._ui_y.options = cache.keys(), cache.keys()
+        link((self, 'x'), (self._ui_x, 'value'))
+        link((self, 'y'), (self._ui_y, 'value'))
+
         if self.refresh: self._refresh_plot()
         updates = int(1.0 / (time.time() - self._last_update))
         progress = "{} | {} updates/s" if updates > 0 else "{}"

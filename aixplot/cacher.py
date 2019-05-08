@@ -23,10 +23,6 @@ class Cacher(ABC):
     async def _async_read(self):
         pass
 
-    @abstractstaticmethod
-    def labels(self):
-        pass
-
     async def async_cache(self, stop_cond=None,
                           on_stop=None, on_update=None, on_eof=None):
         while True:
